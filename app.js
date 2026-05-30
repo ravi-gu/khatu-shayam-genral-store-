@@ -8,8 +8,6 @@ import {
   watchLogin
 } from "./firebase-ready.js";
 
-alert("app.js loaded");
-
 const SESSION_KEY = "SKS_ACTIVE_USER_V2";
 
 const businessTypes = [
