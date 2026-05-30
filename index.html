@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>SKS Business Manager</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="authScreen" class="auth-screen">
+    <div class="auth-card">
+      <div class="brand-row center">
+        <img src="icon-192.png" alt="App Logo" class="auth-logo" />
+        <div>
+          <h1>SKS Business Manager</h1>
+          <p>Billing • Inventory • Reports</p>
+        </div>
+      </div>
+
+      <div class="auth-tabs">
+        <button id="loginTab" class="active" onclick="showAuth('login')">Login</button>
+        <button id="registerTab" onclick="showAuth('register')">Create Account</button>
+      </div>
+
+      <div id="loginBox" class="auth-box active">
+        <label>Username</label>
+        <input id="loginUser" placeholder="Enter username" autocomplete="username" />
+        <label>Password</label>
+        <input id="loginPass" type="password" placeholder="Enter password" autocomplete="current-password" />
+        <button class="primary big" onclick="loginAccount()">Login</button>
+      </div>
+
+      <div id="registerBox" class="auth-box">
+        <label>Owner Name</label>
+        <input id="regOwner" placeholder="Your name" />
+        <label>Business Name</label>
+        <input id="regStore" placeholder="Your store/business name" />
+        <label>Business Type</label>
+        <select id="regBusiness"></select>
+        <label>Username</label>
+        <input id="regUser" placeholder="Create username" autocomplete="username" />
+        <label>Password</label>
+        <input id="regPass" type="password" placeholder="Create password" autocomplete="new-password" />
+        <button class="primary big" onclick="registerAccount()">Create Account</button>
+      </div>
+
+      <p id="authMsg" class="msg"></p>
+      <p class="tiny center-text">No demo data. Every user gets a fresh empty business profile.</p>
+    </div>
+  </div>
+
+  <div id="appContent" class="app-shell" style="display:none">
+    <aside class="sidebar">
+      <div class="store-card">
+        <img id="storeLogoSide" src="icon-192.png" alt="Store Logo" />
+        <h2 id="storeNameSide">My Business</h2>
+        <p id="storeTypeSide">Business</p>
+      </div>
+      <nav class="side-nav">
+        <button class="nav active" data-tab="dashboard">Dashboard</button>
+        <button class="nav" data-tab="products">Products</button>
+        <button class="nav" data-tab="purchase">Purchase</button>
+        <button class="nav" data-tab="sales">Sales</button>
+        <button class="nav" data-tab="customers">Customers</button>
+        <button class="nav" data-tab="reports">Reports</button>
+        <button class="nav" data-tab="templates">Marketing</button>
+        <button class="nav" data-tab="profile">Profile</button>
+      </nav>
+      <button class="danger logout" onclick="logout()">Logout</button>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="hamb" onclick="toggleSidebar()">☰</button>
+        <div>
+          <h1 id="pageTitle">Dashboard</h1>
+          <p id="storeBioTop">Billing • Inventory • Reports</p>
+        </div>
+        <button class="outline" onclick="showTab('profile')">Profile</button>
+      </header>
+
+      <section id="dashboard" class="page active">
+        <div class="cards">
+          <div class="card"><span>Today Sales</span><b id="todaySale">₹0.00</b></div>
+          <div class="card"><span>Today Profit</span><b id="todayProfit">₹0.00</b></div>
+          <div class="card"><span>Total Products</span><b id="totalProducts">0</b></div>
+          <div class="card"><span>Stock Value</span><b id="stockValue">₹0.00</b></div>
+        </div>
+        <div class="panel">
+          <h2>Low Stock Alert</h2>
+          <div id="lowStock"></div>
+        </div>
+      </section>
+
+      <section id="products" class="page">
+        <div class="grid two">
+          <div class="panel">
+            <h2>Add / Edit Product</h2>
+            <input id="productId" type="hidden" />
+            <label>Product Name</label><input id="pName" placeholder="Example: Sugar 1kg" />
+            <label>Category</label><input id="pCat" placeholder="Example: Grocery" />
+            <div class="form-row"><div><label>Purchase Price</label><input id="pBuy" type="number" /></div><div><label>Sale Price</label><input id="pSell" type="number" /></div></div>
+            <div class="form-row"><div><label>Opening Stock</label><input id="pStock" type="number" value="0" /></div><div><label>Low Stock Limit</label><input id="pLow" type="number" value="5" /></div></div>
+            <button class="primary" onclick="saveProduct()">Save Product</button>
+            <button class="outline" onclick="clearProductForm()">Clear</button>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Products</h2><input id="productSearch" placeholder="Search product" oninput="renderProducts()" /></div>
+            <div class="table-wrap"><table><thead><tr><th>Name</th><th>Category</th><th>Buy</th><th>Sell</th><th>Stock</th><th>Action</th></tr></thead><tbody id="productBody"></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="purchase" class="page">
+        <div class="grid two">
+          <div class="panel">
+            <h2>Purchase Entry</h2>
+            <label>Supplier</label><input id="supplier" placeholder="Supplier name" />
+            <label>Product</label><select id="purchaseProduct"></select>
+            <div class="form-row"><div><label>Quantity</label><input id="purchaseQty" type="number" value="1" /></div><div><label>Rate</label><input id="purchaseRate" type="number" /></div></div>
+            <button class="primary" onclick="savePurchase()">Save Purchase</button>
+          </div>
+          <div class="panel">
+            <h2>Purchase History</h2>
+            <div class="table-wrap"><table><thead><tr><th>Date</th><th>Supplier</th><th>Product</th><th>Qty</th><th>Total</th><th>Action</th></tr></thead><tbody id="purchaseBody"></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="sales" class="page">
+        <div class="grid two">
+          <div class="panel">
+            <h2>Billing Counter</h2>
+            <div class="form-row"><div><label>Customer Name</label><input id="customerName" placeholder="Cash customer" /></div><div><label>Mobile</label><input id="customerMobile" placeholder="Optional" /></div></div>
+            <label>Product</label><select id="saleProduct"></select>
+            <div class="form-row"><div><label>Quantity</label><input id="saleQty" type="number" value="1" /></div><div><label>Rate</label><input id="saleRate" type="number" /></div></div>
+            <button class="primary" onclick="addToCart()">Add To Cart</button>
+            <div class="table-wrap"><table><thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Total</th><th></th></tr></thead><tbody id="cartBody"></tbody></table></div>
+            <div class="total-row"><span>Total</span><b id="cartTotal">₹0.00</b></div>
+            <button class="success big" onclick="saveSale()">Save & Print Bill</button>
+          </div>
+          <div class="panel">
+            <div id="invoiceBox"><h2>Invoice Preview</h2><p>Add item to cart and invoice will show here.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="customers" class="page">
+        <div class="panel">
+          <h2>Customers</h2>
+          <div class="table-wrap"><table><thead><tr><th>Name</th><th>Mobile</th><th>Bills</th><th>Total Purchase</th></tr></thead><tbody id="customerBody"></tbody></table></div>
+        </div>
+      </section>
+
+      <section id="reports" class="page">
+        <div class="panel">
+          <div class="panel-head"><h2>Daily Report</h2><div><input id="reportDate" type="date" onchange="renderReport()" /> <button onclick="printReport()">Print</button> <button onclick="exportCSV()">CSV</button></div></div>
+          <div id="reportBox"></div>
+        </div>
+      </section>
+
+      <section id="templates" class="page">
+        <div class="panel">
+          <div class="panel-head"><h2>Marketing Image Templates</h2><button onclick="generateTemplates()">Generate New</button></div>
+          <div class="form-row"><div><label>Ad Title</label><input id="adTitle" placeholder="Business name / Offer title" /></div><div><label>Ad Text</label><input id="adText" placeholder="Special offer text" /></div></div>
+          <div id="templateGrid" class="template-grid"></div>
+        </div>
+        <div class="panel premium-box">
+          <h2>Premium Video Templates</h2>
+          <p>Premium video ads can be connected later with video API/backend.</p>
+          <button class="outline" disabled>Coming Soon</button>
+        </div>
+      </section>
+
+      <section id="profile" class="page">
+        <div class="grid two">
+          <div class="panel">
+            <h2>Business Profile</h2>
+            <label>Store Logo</label><input id="profileLogo" type="file" accept="image/*" />
+            <label>Business Name</label><input id="profileName" />
+            <label>Owner Name</label><input id="profileOwner" />
+            <label>Business Type</label><select id="profileType"></select>
+            <label>Mobile</label><input id="profileMobile" />
+            <label>Address</label><textarea id="profileAddress"></textarea>
+            <label>Bio</label><textarea id="profileBio"></textarea>
+            <button class="primary" onclick="saveProfile()">Save Profile</button>
+          </div>
+          <div class="panel">
+            <h2>Backup / Restore</h2>
+            <p>Use backup before replacing GitHub files or changing mobile.</p>
+            <button onclick="downloadBackup()">Download Backup</button>
+            <label class="restore-label">Restore Backup<input type="file" accept="application/json" onchange="restoreBackup(event)" /></label>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav">
+      <button class="nav active" data-tab="dashboard">Home</button>
+      <button class="nav" data-tab="products">Products</button>
+      <button class="nav" data-tab="sales">Sales</button>
+      <button class="nav" data-tab="reports">Reports</button>
+      <button class="nav" data-tab="profile">Profile</button>
+    </nav>
+  </div>
+
+  <div id="printArea"></div>
+  <script src="app.js"></script>
+</body>
+</html>
