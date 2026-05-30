@@ -1,0 +1,94 @@
+const USERS_KEY='SKS_STORE_USERS_V1';
+const SESSION_KEY='SKS_STORE_ACTIVE_USER_V1';
+let currentUser = localStorage.getItem(SESSION_KEY) || '';
+let KEY = currentUser ? ('SKS_STORE_DATA_' + currentUser) : '';
+let data = {profile:{name:'Shree Khatu Shayam General Store', bio:'Billing • Stock • Purchase • Profit/Loss', address:'', mobile:'', logo:'icon-192.png'}, products:[], purchases:[], sales:[]};
+function getUsers(){return JSON.parse(localStorage.getItem(USERS_KEY)||'{}');}
+function setUsers(u){localStorage.setItem(USERS_KEY, JSON.stringify(u));}
+function cleanUser(u){return (u||'').trim().toLowerCase().replace(/\s+/g,'_');}
+function showAuthTab(tab){
+  loginForm.classList.toggle('active', tab==='login'); registerForm.classList.toggle('active', tab==='register');
+  loginTabBtn.classList.toggle('active', tab==='login'); registerTabBtn.classList.toggle('active', tab==='register');
+  authMsg.textContent='';
+}
+function showAuthMsg(m){authMsg.textContent=m;}
+function registerUser(){
+  const user=cleanUser(regUser.value), pass=regPass.value.trim(), store=regStore.value.trim();
+  if(!user || !pass || !store) return showAuthMsg('Username, password aur store name bharna zaroori hai.');
+  const users=getUsers(); if(users[user]) return showAuthMsg('Ye user pehle se hai. Login karein.');
+  users[user]={password:pass, createdAt:new Date().toISOString()}; setUsers(users);
+  currentUser=user; localStorage.setItem(SESSION_KEY,user); KEY='SKS_STORE_DATA_'+user;
+  data={profile:{name:store, bio:'Billing • Stock • Purchase • Profit/Loss', address:'', mobile:'', logo:'icon-192.png'}, products:[], purchases:[], sales:[]};
+  localStorage.setItem(KEY, JSON.stringify(data)); startApp();
+}
+function loginUser(){
+  const user=cleanUser(loginUserInput()), pass=loginPass.value.trim(); const users=getUsers();
+  if(!users[user] || users[user].password!==pass) return showAuthMsg('Galat username ya password.');
+  currentUser=user; localStorage.setItem(SESSION_KEY,user); KEY='SKS_STORE_DATA_'+user; loadUserData(); startApp();
+}
+function loginUserInput(){return loginUserEl().value}
+function loginUserEl(){return document.getElementById('loginUser')}
+function logoutUser(){localStorage.removeItem(SESSION_KEY); currentUser=''; authScreen.style.display='flex'; appContent.style.display='none';}
+function loadUserData(){
+  const saved=JSON.parse(localStorage.getItem(KEY)||'null');
+  data=saved || {profile:{name:'My Store', bio:'Billing • Stock • Purchase • Profit/Loss', address:'', mobile:'', logo:'icon-192.png'}, products:[], purchases:[], sales:[]};
+  if(!data.profile) data.profile={name:'My Store', bio:'Billing • Stock • Purchase • Profit/Loss', address:'', mobile:'', logo:'icon-192.png'};
+  if(!data.products) data.products=[]; if(!data.purchases) data.purchases=[]; if(!data.sales) data.sales=[];
+}
+function startApp(){authScreen.style.display='none'; appContent.style.display='block'; updateProfileUI(); renderAll(); updateInvoicePreview();}
+function initAuth(){ if(currentUser){KEY='SKS_STORE_DATA_'+currentUser; loadUserData(); startApp();} else {authScreen.style.display='flex'; appContent.style.display='none'; showAuthTab('register');}}
+
+let cart=[];
+const rupee=n=>'₹'+(Number(n)||0).toFixed(2);
+const today=()=>new Date().toISOString().slice(0,10);
+const save=()=>{if(KEY)localStorage.setItem(KEY,JSON.stringify(data)); renderAll();};
+function showTab(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById(id).classList.add('active');let b=document.querySelector(`[data-tab="${id}"]`); if(b)b.classList.add('active'); if(id==='reports')renderReport();}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+function productById(id){return data.products.find(p=>p.id===id)}
+function fillSelects(){let opts='<option value="">Select Product</option>'+data.products.map(p=>`<option value="${p.id}">${p.name} (Stock: ${p.stock})</option>`).join(''); saleProduct.innerHTML=opts; purchaseProduct.innerHTML=opts;}
+saleProduct.onchange=()=>{let p=productById(saleProduct.value); saleRate.value=p?p.sell:0;};
+purchaseProduct.onchange=()=>{let p=productById(purchaseProduct.value); purchaseRate.value=p?p.buy:0;};
+function clearProductForm(){productId.value='';pName.value='';pCat.value='';pBuy.value='';pSell.value='';pStock.value=0;pLow.value=5;}
+function saveProduct(){let id=productId.value||Date.now().toString();let existing=productById(id);let p={id,name:pName.value.trim(),cat:pCat.value.trim(),buy:+pBuy.value||0,sell:+pSell.value||0,stock:+pStock.value||0,low:+pLow.value||0}; if(!p.name)return alert('Product name डालें'); if(existing){Object.assign(existing,p)}else data.products.push(p); clearProductForm(); save();}
+function editProduct(id){let p=productById(id); productId.value=p.id;pName.value=p.name;pCat.value=p.cat;pBuy.value=p.buy;pSell.value=p.sell;pStock.value=p.stock;pLow.value=p.low; showTab('products');}
+function delProduct(id){if(confirm('Product delete करें?')){data.products=data.products.filter(p=>p.id!==id);save();}}
+function renderProducts(){let q=(productSearch?.value||'').toLowerCase();productBody.innerHTML=data.products.filter(p=>p.name.toLowerCase().includes(q)||p.cat.toLowerCase().includes(q)).map(p=>`<tr><td>${p.name}</td><td>${p.cat}</td><td>${rupee(p.buy)}</td><td>${rupee(p.sell)}</td><td><span class="badge ${p.stock<=p.low?'red':''}">${p.stock}</span></td><td><button onclick="editProduct('${p.id}')">Edit</button> <button onclick="delProduct('${p.id}')">Delete</button></td></tr>`).join('')||'<tr><td colspan="6">अभी कोई product नहीं है। अपना product add करें।</td></tr>';}
+function savePurchase(){let p=productById(purchaseProduct.value); if(!p)return alert('Product select करें'); let qty=+purchaseQty.value||0, rate=+purchaseRate.value||0; if(qty<=0)return alert('Qty सही डालें'); p.stock+=qty;p.buy=rate; data.purchases.push({id:Date.now().toString(),date:today(),supplier:supplier.value.trim(),pid:p.id,pname:p.name,qty,rate,total:qty*rate}); supplier.value='';purchaseQty.value=1;purchaseRate.value=''; save();}
+function delPurchase(id){let x=data.purchases.find(a=>a.id===id); if(!x)return; if(confirm('Purchase delete करें? Stock भी कम होगा।')){let p=productById(x.pid); if(p)p.stock-=x.qty; data.purchases=data.purchases.filter(a=>a.id!==id);save();}}
+function renderPurchases(){purchaseBody.innerHTML=[...data.purchases].reverse().map(x=>`<tr><td>${x.date}</td><td>${x.supplier||'-'}</td><td>${x.pname}</td><td>${x.qty}</td><td>${rupee(x.rate)}</td><td>${rupee(x.total)}</td><td><button onclick="delPurchase('${x.id}')">Delete</button></td></tr>`).join('')||'<tr><td colspan="7">No purchase entry</td></tr>';}
+function addToCart(){let p=productById(saleProduct.value); if(!p)return alert('Product select करें'); let qty=+saleQty.value||0, rate=+saleRate.value||0; if(qty<=0)return alert('Qty सही डालें'); if(qty>p.stock)return alert('इतना stock available नहीं है'); cart.push({pid:p.id,name:p.name,qty,rate,buy:p.buy,total:qty*rate,profit:(rate-p.buy)*qty}); saleQty.value=1;saleRate.value='';saleProduct.value=''; renderCart();}
+function removeCartItem(n){cart.splice(n,1);renderCart();}
+function renderCart(){cartBody.innerHTML=cart.map((i,n)=>`<tr><td>${i.name}</td><td>${i.qty}</td><td>${rupee(i.rate)}</td><td>${rupee(i.total)}</td><td><button onclick="removeCartItem(${n})">X</button></td></tr>`).join(''); cartTotal.textContent=rupee(cart.reduce((s,i)=>s+i.total,0)); updateInvoicePreview();}
+function saveSale(){if(!cart.length)return alert('Cart खाली है'); for(const i of cart){let p=productById(i.pid); if(p)p.stock-=i.qty;} let sale={id:Date.now().toString(),date:today(),customer:customerName.value.trim(),mobile:customerMobile.value.trim(),items:[...cart],total:cart.reduce((s,i)=>s+i.total,0),profit:cart.reduce((s,i)=>s+i.profit,0)}; data.sales.push(sale); cart=[];customerName.value='';customerMobile.value='';save();renderCart();makeInvoice(sale); setTimeout(()=>printInvoice(sale),300);}
+function invoiceHTML(s){return `<div class="bill-print"><div class="bill-head"><h2>${(data.profile&&data.profile.name)||'Store'}</h2><p>${(data.profile&&data.profile.bio)||'Cash Memo / Invoice'}</p></div><p><b>Invoice No:</b> ${s.id}<br><b>Date:</b> ${s.date}<br><b>Customer:</b> ${s.customer||'Cash'} ${s.mobile?'- '+s.mobile:''}</p><table><thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead><tbody>${s.items.map(i=>`<tr><td>${i.name}</td><td>${i.qty}</td><td>${rupee(i.rate)}</td><td>${rupee(i.total)}</td></tr>`).join('')}</tbody></table><h2 class="right">Grand Total: ${rupee(s.total)}</h2><p class="thanks">धन्यवाद! फिर आइए।</p></div>`;}
+function makeInvoice(s){invoiceBox.innerHTML=invoiceHTML(s)+`<button class="primary no-print" onclick="printInvoiceById('${s.id}')">Print Invoice</button>`;}
+function updateInvoicePreview(){if(!cart.length){invoiceBox.innerHTML='<h2>Invoice Preview</h2><p>Product cart में add करते ही invoice preview यहां दिखेगा।</p>';return;} let draft={id:'Preview',date:today(),customer:customerName.value.trim(),mobile:customerMobile.value.trim(),items:[...cart],total:cart.reduce((s,i)=>s+i.total,0),profit:0}; invoiceBox.innerHTML=invoiceHTML(draft)+'<p class="no-print hint">Save & Print Invoice दबाने के बाद final bill save होगा।</p>';}
+function printContent(html){printArea.innerHTML=html;document.body.classList.add('printing');setTimeout(()=>{window.print();setTimeout(()=>document.body.classList.remove('printing'),700)},200);}
+function printInvoice(s){printContent(invoiceHTML(s));}
+function printInvoiceById(id){let s=data.sales.find(x=>x.id===id); if(s)printInvoice(s);}
+function renderDashboard(){let d=today();let sales=data.sales.filter(s=>s.date===d);todaySale.textContent=rupee(sales.reduce((a,s)=>a+s.total,0));todayProfit.textContent=rupee(sales.reduce((a,s)=>a+s.profit,0));totalProducts.textContent=data.products.length;stockValue.textContent=rupee(data.products.reduce((a,p)=>a+p.stock*p.buy,0));lowStock.innerHTML=data.products.filter(p=>p.stock<=p.low).map(p=>`<p class="red"><b>${p.name}</b> - Stock ${p.stock}</p>`).join('')||'<p class="green">Low stock item नहीं है।</p>';}
+function renderReport(){let d=reportDate.value||today(); reportDate.value=d; let sales=data.sales.filter(s=>s.date===d), pur=data.purchases.filter(p=>p.date===d); let saleTotal=sales.reduce((a,s)=>a+s.total,0), profit=sales.reduce((a,s)=>a+s.profit,0), purTotal=pur.reduce((a,p)=>a+p.total,0); reportBox.innerHTML=`<h2>Daily Report - ${d}</h2><div class="cards"><div class="card"><span>Sales</span><b>${rupee(saleTotal)}</b></div><div class="card"><span>Purchase</span><b>${rupee(purTotal)}</b></div><div class="card"><span>Profit</span><b>${rupee(profit)}</b></div><div class="card"><span>Bills</span><b>${sales.length}</b></div></div><h3>Sales Bills</h3><table><thead><tr><th>Bill</th><th>Customer</th><th>Total</th><th>Profit</th></tr></thead><tbody>${sales.map(s=>`<tr><td>${s.id}</td><td>${s.customer||'Cash'}</td><td>${rupee(s.total)}</td><td>${rupee(s.profit)}</td></tr>`).join('')||'<tr><td colspan="4">No sales</td></tr>'}</tbody></table><h3>Purchases</h3><table><thead><tr><th>Supplier</th><th>Product</th><th>Qty</th><th>Total</th></tr></thead><tbody>${pur.map(p=>`<tr><td>${p.supplier||'-'}</td><td>${p.pname}</td><td>${p.qty}</td><td>${rupee(p.total)}</td></tr>`).join('')||'<tr><td colspan="4">No purchases</td></tr>'}</tbody></table>`;}
+function printReport(){showTab('reports'); renderReport(); printContent(reportBox.innerHTML);}
+function exportCSV(){let rows=['Type,Date,Name,Qty,Rate,Total'];data.purchases.forEach(p=>rows.push(`Purchase,${p.date},${p.pname},${p.qty},${p.rate},${p.total}`));data.sales.forEach(s=>s.items.forEach(i=>rows.push(`Sale,${s.date},${i.name},${i.qty},${i.rate},${i.total}`)));download('sks-report.csv',rows.join('\n'),'text/csv');}
+function downloadBackup(){download('sks-store-backup.json',JSON.stringify(data,null,2),'application/json');}
+function download(name,content,type){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
+function restoreBackup(e){let f=e.target.files[0]; if(!f)return; let r=new FileReader(); r.onload=()=>{try{data=JSON.parse(r.result);save();alert('Backup restore हो गया')}catch{alert('Invalid file')}}; r.readAsText(f);}
+function resetConfirm(){if(confirm('सारा data delete हो जाएगा. Continue?')){data={profile:data.profile||{name:'My Store',bio:'',address:'',mobile:'',logo:'icon-192.png'},products:[],purchases:[],sales:[]};save();}}
+function renderAll(){fillSelects();renderProducts();renderPurchases();renderDashboard();}
+customerName.addEventListener('input', updateInvoicePreview);
+customerMobile.addEventListener('input', updateInvoicePreview);
+function updateProfileUI(){
+  const p=data.profile||{};
+  storeNameTop.textContent=p.name||'My Store'; storeBioTop.textContent=p.bio||'Billing • Stock • Purchase • Profit/Loss';
+  storeLogoTop.src=p.logo||'icon-192.png';
+  if(document.getElementById('profileName')){profileName.value=p.name||''; profileBio.value=p.bio||''; profileAddress.value=p.address||''; profileMobile.value=p.mobile||''; profileLogoPreview.src=p.logo||'icon-192.png';}
+}
+function previewLogo(e){
+  const f=e.target.files[0]; if(!f) return; const r=new FileReader();
+  r.onload=()=>{profileLogoPreview.src=r.result;}; r.readAsDataURL(f);
+}
+function saveProfile(){
+  data.profile={name:profileName.value.trim()||'My Store', bio:profileBio.value.trim(), address:profileAddress.value.trim(), mobile:profileMobile.value.trim(), logo:profileLogoPreview.src||'icon-192.png'};
+  save(); updateProfileUI(); alert('Profile save ho gaya');
+}
+initAuth();
