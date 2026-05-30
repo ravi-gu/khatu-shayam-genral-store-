@@ -1,4 +1,4 @@
-// Firebase backend connect file
+// Firebase backend connect file - REAL LOGIN VERSION
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
@@ -7,7 +7,8 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   RecaptchaVerifier,
   signInWithPhoneNumber,
   signOut,
@@ -24,8 +25,7 @@ import {
   addDoc,
   getDocs,
   deleteDoc,
-  updateDoc,
-  serverTimestamp
+  updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 import {
@@ -57,28 +57,31 @@ export function watchLogin(callback) {
 
 export async function fbRegister(email, password, profile = {}) {
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-  const uid = userCredential.user.uid;
+  const user = userCredential.user;
 
-  await setDoc(doc(db, "users", uid), {
-    uid,
-    email,
-    profile,
+  await setDoc(doc(db, "users", user.uid), {
+    uid: user.uid,
+    email: user.email || email,
+    name: profile.owner || "",
+    plan: "free",
+    loginType: "email",
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  }, { merge: true });
+
+  await setDoc(doc(db, "stores", user.uid), {
+    ownerId: user.uid,
+    owner: profile.owner || "",
+    storeName: profile.storeName || "My Business",
+    businessType: profile.businessType || "General Store",
+    bio: profile.bio || "Billing • Inventory • Marketing • Reports",
+    logoUrl: profile.logoUrl || "",
     plan: "free",
     createdAt: Date.now(),
     updatedAt: Date.now()
   }, { merge: true });
 
-  await setDoc(doc(db, "stores", uid), {
-    ownerId: uid,
-    storeName: profile.storeName || "",
-    businessType: profile.businessType || "",
-    bio: profile.bio || "",
-    logoUrl: profile.logoUrl || "",
-    createdAt: Date.now(),
-    updatedAt: Date.now()
-  }, { merge: true });
-
-  return uid;
+  return user.uid;
 }
 
 export async function fbLogin(email, password) {
@@ -88,7 +91,20 @@ export async function fbLogin(email, password) {
 
 export async function fbGoogleLogin() {
   const provider = new GoogleAuthProvider();
-  const result = await signInWithPopup(auth, provider);
+  provider.setCustomParameters({
+    prompt: "select_account"
+  });
+
+  await signInWithRedirect(auth, provider);
+}
+
+export async function checkGoogleRedirect() {
+  const result = await getRedirectResult(auth);
+
+  if (!result || !result.user) {
+    return null;
+  }
+
   const user = result.user;
 
   await setDoc(doc(db, "users", user.uid), {
@@ -97,13 +113,16 @@ export async function fbGoogleLogin() {
     name: user.displayName || "",
     photoURL: user.photoURL || "",
     plan: "free",
+    loginType: "google",
     updatedAt: Date.now()
   }, { merge: true });
 
   await setDoc(doc(db, "stores", user.uid), {
     ownerId: user.uid,
-    storeName: user.displayName || "",
+    owner: user.displayName || "",
+    storeName: user.displayName || "My Business",
     logoUrl: user.photoURL || "",
+    plan: "free",
     updatedAt: Date.now()
   }, { merge: true });
 
@@ -111,7 +130,9 @@ export async function fbGoogleLogin() {
 }
 
 export function setupRecaptcha(containerId = "recaptcha-container") {
-  if (window.recaptchaVerifier) return window.recaptchaVerifier;
+  if (window.recaptchaVerifier) {
+    return window.recaptchaVerifier;
+  }
 
   window.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
     size: "invisible"
@@ -121,14 +142,19 @@ export function setupRecaptcha(containerId = "recaptcha-container") {
 }
 
 export async function fbSendOtp(phone) {
+  if (!phone.startsWith("+")) {
+    throw new Error("Mobile number country code ke saath daalo. Example: +919876543210");
+  }
+
   const appVerifier = setupRecaptcha();
   window.confirmationResult = await signInWithPhoneNumber(auth, phone, appVerifier);
+
   return true;
 }
 
 export async function fbVerifyOtp(code) {
   if (!window.confirmationResult) {
-    throw new Error("OTP pehle send karo");
+    throw new Error("Pehle OTP send karo");
   }
 
   const result = await window.confirmationResult.confirm(code);
@@ -138,11 +164,15 @@ export async function fbVerifyOtp(code) {
     uid: user.uid,
     phone: user.phoneNumber || "",
     plan: "free",
+    loginType: "phone",
     updatedAt: Date.now()
   }, { merge: true });
 
   await setDoc(doc(db, "stores", user.uid), {
     ownerId: user.uid,
+    phone: user.phoneNumber || "",
+    storeName: "My Business",
+    plan: "free",
     updatedAt: Date.now()
   }, { merge: true });
 
@@ -166,7 +196,7 @@ export async function loadUserData(uid) {
 }
 
 export function listenUserData(uid, callback) {
-  return onSnapshot(doc(db, "stores", uid), (snap) => {
+  return onSnapshot(doc(db, "stores", uid), snap => {
     callback(snap.exists() ? snap.data() : null);
   });
 }
@@ -176,18 +206,22 @@ export async function uploadStoreLogo(uid, file) {
   await uploadBytes(logoRef, file);
   const url = await getDownloadURL(logoRef);
 
-  await saveUserData(uid, { logoUrl: url });
+  await saveUserData(uid, {
+    logoUrl: url
+  });
 
   return url;
 }
 
 export async function addUserItem(uid, collectionName, item) {
   const refCol = collection(db, "stores", uid, collectionName);
+
   const docRef = await addDoc(refCol, {
     ...item,
     createdAt: Date.now(),
     updatedAt: Date.now()
   });
+
   return docRef.id;
 }
 
@@ -195,7 +229,7 @@ export async function getUserItems(uid, collectionName) {
   const refCol = collection(db, "stores", uid, collectionName);
   const snap = await getDocs(refCol);
 
-  return snap.docs.map((d) => ({
+  return snap.docs.map(d => ({
     id: d.id,
     ...d.data()
   }));
