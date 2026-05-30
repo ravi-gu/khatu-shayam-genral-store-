@@ -2,6 +2,7 @@ import {
   fbRegister,
   fbLogin,
   fbGoogleLogin,
+  checkGoogleRedirect,
   fbSendOtp,
   fbVerifyOtp,
   fbLogout,
