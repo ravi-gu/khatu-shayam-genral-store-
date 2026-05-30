@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="hi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SKS Business Manager</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="authScreen" class="auth-screen">
+    <div class="auth-card">
+      <img src="icon-192.png" class="auth-logo" alt="logo">
+      <h1>Business Manager</h1>
+      <p class="muted">Apna real account banayein. Demo data/login nahi hai.</p>
+
+      <div class="auth-tabs">
+        <button id="loginTab" class="active" onclick="showAuth('login')">Login</button>
+        <button id="registerTab" onclick="showAuth('register')">Register</button>
+      </div>
+
+      <div id="loginBox" class="auth-form active">
+        <input id="loginEmail" type="email" placeholder="Email / Username">
+        <input id="loginPassword" type="password" placeholder="Password">
+        <button class="primary full" onclick="emailLogin()">Login</button>
+        <div class="or">या</div>
+        <button class="google" onclick="googleLoginUI()">Google se Login</button>
+        <div class="otp-row">
+          <input id="otpPhone" placeholder="Mobile +91XXXXXXXXXX">
+          <button onclick="sendOtpUI()">OTP</button>
+        </div>
+        <div class="otp-row">
+          <input id="otpCode" placeholder="OTP Code">
+          <button onclick="verifyOtpUI()">Verify</button>
+        </div>
+      </div>
+
+      <div id="registerBox" class="auth-form">
+        <input id="regName" placeholder="Owner Name">
+        <input id="regEmail" type="email" placeholder="Email">
+        <input id="regPassword" type="password" placeholder="Password">
+        <input id="regStore" placeholder="Business / Store Name">
+        <select id="regBusiness"></select>
+        <button class="primary full" onclick="registerAccount()">Create Account</button>
+      </div>
+      <p id="authMsg" class="auth-msg"></p>
+      
+    </div>
+  </div>
+
+  <div id="appContent" style="display:none">
+    <aside class="sidebar">
+      <div class="side-brand">
+        <img id="storeLogoSide" src="icon-192.png" alt="logo">
+        <div><b id="storeNameSide">My Business</b><span id="storeTypeSide">Business</span></div>
+      </div>
+      <button class="nav active" data-tab="dashboard">Dashboard</button>
+      <button class="nav" data-tab="billing">Billing</button>
+      <button class="nav" data-tab="products">Products</button>
+      <button class="nav" data-tab="purchase">Purchase</button>
+      <button class="nav" data-tab="customers">Customers</button>
+      <button class="nav" data-tab="reports">Reports</button>
+      <button class="nav" data-tab="marketing">Marketing</button>
+      <button class="nav" data-tab="premium">Premium</button>
+      <button class="nav" data-tab="profile">Profile</button>
+      <button class="nav danger" onclick="logout()">Logout</button>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><h1 id="pageTitle">Dashboard</h1><p id="storeBioTop">Billing • Inventory • Marketing • Reports</p></div>
+        <div class="top-actions"><button onclick="downloadBackup()">Backup</button><label class="btn">Restore<input type="file" accept="application/json" hidden onchange="restoreBackup(event)"></label></div>
+      </header>
+
+      <section id="dashboard" class="page active">
+        <div class="stats">
+          <div class="stat"><span>Today Sales</span><b id="todaySale">₹0</b></div>
+          <div class="stat"><span>Today Profit</span><b id="todayProfit">₹0</b></div>
+          <div class="stat"><span>Products</span><b id="totalProducts">0</b></div>
+          <div class="stat"><span>Stock Value</span><b id="stockValue">₹0</b></div>
+        </div>
+        <div class="grid2"><div class="panel"><h2>Low Stock</h2><div id="lowStock"></div></div><div class="panel"><h2>Quick Actions</h2><button onclick="showTab('products')">Add Product</button><button onclick="showTab('billing')">Create Bill</button><button onclick="showTab('marketing')">Create Ad Image</button></div></div>
+      </section>
+
+      <section id="billing" class="page">
+        <div class="grid2">
+          <div class="panel"><h2>Sales / Invoice</h2><label>Customer <input id="customerName"></label><label>Mobile <input id="customerMobile"></label><div class="line"><select id="saleProduct"></select><input id="saleQty" type="number" value="1" min="1"><input id="saleRate" type="number" placeholder="Rate"><button onclick="addToCart()">Add</button></div><table><thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Total</th><th></th></tr></thead><tbody id="cartBody"></tbody></table><h2 class="right" id="cartTotal">₹0</h2><button class="primary" onclick="saveSale()">Save & Print Invoice</button></div>
+          <div class="panel invoice" id="invoiceBox"><h2>Invoice Preview</h2><p>Cart me item add karte hi bill yahan dikhega.</p></div>
+        </div>
+      </section>
+
+      <section id="products" class="page">
+        <div class="panel"><h2>Add / Edit Product</h2><input type="hidden" id="productId"><div class="formgrid"><label>Item Name <input id="pName"></label><label>Category <input id="pCat"></label><label>Purchase Rate <input id="pBuy" type="number"></label><label>Sale Rate <input id="pSell" type="number"></label><label>Stock <input id="pStock" type="number" value="0"></label><label>Low Alert <input id="pLow" type="number" value="5"></label></div><button class="primary" onclick="saveProduct()">Save Product</button><button onclick="clearProductForm()">Clear</button></div>
+        <div class="panel"><h2>Products</h2><input id="productSearch" class="search" oninput="renderAll()" placeholder="Search"><table><thead><tr><th>Name</th><th>Cat</th><th>Buy</th><th>Sell</th><th>Stock</th><th>Action</th></tr></thead><tbody id="productBody"></tbody></table></div>
+      </section>
+
+      <section id="purchase" class="page"><div class="panel"><h2>Purchase Entry</h2><div class="formgrid"><label>Supplier Name <input id="supplier"></label><label>Product <select id="purchaseProduct"></select></label><label>Qty <input id="purchaseQty" type="number" value="1"></label><label>Rate <input id="purchaseRate" type="number"></label></div><button class="primary" onclick="savePurchase()">Save Purchase</button></div><div class="panel"><h2>Purchase History</h2><table><thead><tr><th>Date</th><th>Supplier</th><th>Product</th><th>Qty</th><th>Total</th><th>Action</th></tr></thead><tbody id="purchaseBody"></tbody></table></div></section>
+
+      <section id="customers" class="page"><div class="panel"><h2>Customers</h2><p class="muted">Bill banane par customer yahan automatic list me dikhega.</p><table><thead><tr><th>Name</th><th>Mobile</th><th>Total Bills</th><th>Total Sale</th></tr></thead><tbody id="customerBody"></tbody></table></div></section>
+
+      <section id="reports" class="page"><div class="panel no-print"><h2>Reports</h2><input id="reportDate" type="date"><button class="primary" onclick="renderReport()">Show</button><button onclick="printReport()">Print</button><button onclick="exportCSV()">Export CSV</button></div><div class="panel" id="reportBox"></div></section>
+
+      <section id="marketing" class="page"><div class="panel"><h2>Marketing Image Templates</h2><p class="muted">Refresh/New Templates dabane par 10 naye ad-style templates banenge. Edit karke download/share kar sakte hain.</p><div class="line"><input id="adTitle" placeholder="Offer title"><input id="adText" placeholder="Offer details"><button class="primary" onclick="generateTemplates()">New Templates</button></div><div id="templateGrid" class="template-grid"></div></div></section>
+
+      <section id="premium" class="page"><div class="panel premium"><h2>Premium Features</h2><p>Premium plan me video ads, bulk WhatsApp sharing, custom branding aur advanced reports add kar sakte hain.</p><div class="premium-box"><h3>Video Ad Template</h3><p>Backend/API connect hone ke baad yahan se 10-15 sec ka video ad generate hoga.</p><button onclick="alert('Video feature premium backend/API se connect karna hoga.')">Create Video</button></div></div></section>
+
+      <section id="profile" class="page"><div class="panel"><h2>Business Profile</h2><div class="formgrid"><label>Store/Business Name <input id="profileName"></label><label>Business Type <select id="profileType"></select></label><label>Owner Name <input id="profileOwner"></label><label>Mobile <input id="profileMobile"></label><label>Address <input id="profileAddress"></label><label>Bio <input id="profileBio"></label><label>Logo <input id="profileLogo" type="file" accept="image/*"></label></div><button class="primary" onclick="saveProfile()">Save Profile</button></div><div class="panel"><h2>Backend Connect Guide</h2><p>Firebase code ke liye <b>firebase-ready.js</b> file dekhein. Is frontend me hooks ready hain.</p></div></section>
+    </main>
+  </div>
+  <div id="printArea"></div>
+  
+    <div id="recaptcha-container"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
+</body>
+</html>
